@@ -1,13 +1,15 @@
 import numpy as np
+import statistics
 import cv2
+import math
 import matplotlib.pyplot as plt
-cap = cv2.VideoCapture('slow_2.avi')
+cap = cv2.VideoCapture('Edit_video_4.mp4')
 
-
+maxcor=5
 # 角點設定參數
-feature_params = dict(maxCorners=1,#數量(優先找最強的角點)
-                      qualityLevel=0.1,#去掉(最好等級*數字)以下的角點
-                      minDistance=10,#角之間的最小距離(不能太近)
+feature_params = dict(maxCorners=maxcor,#數量(優先找最強的角點)
+                      qualityLevel=0.01,#去掉(最好等級*數字)以下的角點
+                      minDistance=1,#角之間的最小距離(不能太近)
                       blockSize=10)#
 
 # lucas kanade(光流)設定參數
@@ -45,7 +47,8 @@ while (1):#循環
     # draw the tracks
     new_a = 0
     new_b = 0
-    dy = [0] *1
+    count = 0
+    dy = np.array([None] *maxcor)
     for i, (new, old) in enumerate(zip(good_new, good_old)):
         #old_a = new_a
         old_b = new_b
@@ -57,15 +60,32 @@ while (1):#循環
         #new_a = a
         new_b = b
         #dx = old_a - new_a
-        dy[i] = old_b - new_b
-        print(dy[i])
-        print(i)
+        num = int(old_b - new_b)
+        num_2 = (round((num*2)/10))*5
+        #if ((num_2 <= 20)and(num_2 >= -20))or((num_2 >= 500)or(num_2 <= -500)):
+        #    num_2 = 0
+        if num_2 == 0:
+            count = count+1
+        dy[i] = num_2
+        new_i = i
+        #print(dy[i])
+        #print(i)
 
+
+    print(new_i-count)
+    new_dy = np.array([None]*(new_i-count))
+    dy = dy[dy != 0]
+    for i in range(new_i-count):
+        new_dy[i] = dy[i]
 
     img = cv2.add(frame, mask)
 
+    maxdy = statistics.mode(new_dy)# 返回眾數
+    del new_dy
+
+
     # 中位
-    maxdy = np.mean(dy)
+    #maxdy = np.mean(dy)
     print(maxdy)
     #exit()
     # 向量計算
