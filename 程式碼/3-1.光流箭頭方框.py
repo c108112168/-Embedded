@@ -13,9 +13,23 @@ def draw_min_rect_circle(img, cnts):  # 繪製邊緣
 
     return img
 
+def cut(img, cnts):  # 抓取圖片存檔
+    img = np.copy(img)
+    j = 0
+    for cnt in cnts:
 
-cap = cv2.VideoCapture('check.mp4')  # 光流輸出影片
-cap2 = cv2.VideoCapture('short.mp4')  # 原影片
+        x, y, w, h = cv2.boundingRect(cnt)
+        perimeter = cv2.arcLength(cnt, True)  # 計算周長
+        if perimeter >= 200:  # 去掉太大和太小的
+            j = j + 1
+            final_path = path + str(i) + "_" + str(j) + ".jpg"  # 設定路徑名稱
+            crop_img = img[y:y + h, x:x + w] # 割取圖片
+            cv2.imwrite(str(final_path), crop_img)
+    return img
+
+
+cap = cv2.VideoCapture('check_MOV00271.mp4')  # 光流輸出影片(有物件的部分)
+cap2 = cv2.VideoCapture('MOV00271.mp4')  # 原影片
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 FPS = int(cap.get(cv2.CAP_PROP_FPS))
@@ -30,14 +44,18 @@ ret, old_th = cv2.threshold(im, 127, 255, cv2.THRESH_BINARY)  # 第一幀二值�
 fourcc = 0x00000021  # cv2.VideoWriter_fourcc('H', '2', '6', '4')
 videoWriter = cv2.VideoWriter('D:/output/final_Gaussian.mp4', fourcc, 30,
                               (width, height))  # 建立 VideoWriter 物件，輸出影片至 output.avi
-
+path = "D:/output/photo/object"
+i = 0
 while (cap.isOpened()):
+    i = i + 1
     ret, im = cap.read()  # 光流第二幀
     ret, im2_new = cap2.read()  # 原第二幀
+
     if ret == True:
         gray = cv2.cvtColor(im2_new, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (11, 11), 0)
         flow = cv2.calcOpticalFlowFarneback(prevgray, gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+        flow = cv2.GaussianBlur(flow, (11, 11), 0)
         prevgray = gray
 
         #繪製
@@ -59,8 +77,8 @@ while (cap.isOpened()):
         # 侵蝕膨脹調整
         kernel = np.ones((3, 3), np.uint8)
         erosion = cv2.erode(old_th, kernel, iterations=0)
-        dilation = cv2.dilate(erosion, kernel, iterations=15)
-        erosion = cv2.erode(dilation, kernel, iterations=15)
+        #dilation = cv2.dilate(erosion, kernel, iterations=15)
+        #erosion = cv2.erode(dilation, kernel, iterations=15)
         dilation = cv2.dilate(erosion, kernel, iterations=0)
 
         for l in lines:
@@ -74,13 +92,14 @@ while (cap.isOpened()):
             if ((dilation[line_Y][line_X]) == [255, 255, 255]).any():
                 line.append(l)
 
-        thresh = cv2.Canny(dilation, 50, 150)  # CANNY找邊緣
+        thresh = cv2.Canny(new_th, 50, 150)  # CANNY找邊緣
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         img = draw_min_rect_circle(im2, contours)
         cv2.polylines(img, line, 0, (0, 0, 255))
         cv2.imshow('erosion', erosion)  # 輸出經過膨脹侵蝕之二值化圖
         cv2.imshow('img', img)  # 輸出繪製後
+        cut(img, contours)
 
         videoWriter.write(img)  # 輸出影片 要等...
 
